@@ -1,0 +1,12 @@
+dependencies:
+  Container:
+    - Array
+    - Vector
+  Library:
+    - AffineTransform
+    - Allocator
+    - AlxCallStack
+    - AlxFont
+    - AlxThrow
+    - AST
+  
