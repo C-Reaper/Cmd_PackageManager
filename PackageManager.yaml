@@ -1,12 +1,12 @@
 dependencies:
   Container:
-    - Array
-    - Vector
+    Array: 0.0
+    Vector: 0.0
   Library:
-    - AffineTransform
-    - Allocator
-    - AlxCallStack
-    - AlxFont
-    - AlxThrow
-    - AST
+    AffineTransform: 0.0
+    Allocator: 0.0
+    AlxCallStack: 0.0
+    AlxFont: 0.0
+    AlxThrow: 0.0
+    AST: 0.0
   
