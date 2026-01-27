@@ -233,7 +233,7 @@ void Vector_Remove(Vector* v, unsigned int Index) {
     }else if(Index >= 0 && Index == v->size-1){
         Vector_PopTop(v);
     }else {
-        printf("[Vector]: not able to Remove At Index: %i\n", Index);
+        printf("[Vector]: not able to Remove At Index: %d\n", Index);
     }
 }
 void Vector_RemoveCount(Vector* v, unsigned int Index,int Count) {
@@ -249,7 +249,7 @@ void Vector_RemoveCount(Vector* v, unsigned int Index,int Count) {
     }else if(Index >= 0 && Index == v->size-1){
         Vector_PopTop(v);
     }else {
-        printf("[Vector]: not able to RemoveCount At Index: %i\n", Index);
+        printf("[Vector]: not able to RemoveCount At Index: %d\n", Index);
     }
 }
 void Vector_Swap(Vector* v,unsigned int i1,unsigned int i2) {
@@ -264,10 +264,12 @@ void Vector_Swap(Vector* v,unsigned int i1,unsigned int i2) {
     }
 }
 void Vector_Reset(Vector* v) {
+    if(!v) return;
     if(v->Memory) free(v->Memory);
     v->Memory = malloc(v->SIZE * v->ELEMENT_SIZE);
 }
 void Vector_Clear(Vector* v) {
+    if(!v) return;
     if(v->size==0) return;
     if(v->SIZE<=10){
         v->size = 0;
@@ -279,17 +281,19 @@ void Vector_Clear(Vector* v) {
     v->SIZE = VECTOR_STARTSIZE;
 }
 void Vector_Free(Vector* v) {
-    if (v->Memory) free(v->Memory);
+    if(!v) return;
+    if(v->Memory) free(v->Memory);
     v->Memory = NULL;
     v->ELEMENT_SIZE = (int)0ULL;
     v->size = 0U;
 }
 void Vector_Print(Vector* v) {
+    if(!v) return;
     printf("--- Vector ---\n");
-    printf("Size:%i\n", (int)v->size);
-    printf("ESize:%i\n", (int)v->ELEMENT_SIZE);
+    printf("Size: %d\n", (int)v->size);
+    printf("ESize: %d\n", (int)v->ELEMENT_SIZE);
     for (int i = 0; i < v->size; i++) {
-        printf("Element %i: ", i);
+        printf("Element %d: ", i);
         for (int j = 0; j < v->ELEMENT_SIZE; j++) {
             printf("%x", ((char*)v->Memory)[i * v->ELEMENT_SIZE + j]);
         }

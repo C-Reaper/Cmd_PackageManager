@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "../Library/Console_Tools.h"
-#include "../Library/CStr.h"
-#include "../Library/String.h"
+#include "Console_Tools.h"
+#include "CStr.h"
+#include "String.h"
  
 void Throw_Info(CStr format,...) {
     va_list args;

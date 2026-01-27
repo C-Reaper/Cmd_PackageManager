@@ -10,15 +10,27 @@
 #include "AlxShutingYard.h"
 #include "AlxExternFunctions.h"
 
+
+
+#define FUNCTIONRT_NONE         0
+#define FUNCTIONRT_CALL         1
+#define FUNCTIONRT_ARG0         2
+#define FUNCTIONRT_UNFINISHED   3
+#define FUNCTIONRT_JMP          4
+#define FUNCTIONRT_FULLRETURN   5
+
+typedef unsigned char FunctionRT;
+
 #define CALLPOSITION_INVALID    -1
-#define FUNCTION_CALLED         -1
+#define FUNCTION_CALLED         -2
 
 typedef struct CallPosition {
     TokenMap tm;
-    TT_Type type;
-    TT_Iter pos;
     CStr fname;
+    TT_Iter pos;
     int range;
+    TT_Type type;
+    FunctionRT sy;
 } CallPosition;
 
 CallPosition CallPosition_New(TT_Type tt,TT_Iter it) {
@@ -27,6 +39,7 @@ CallPosition CallPosition_New(TT_Type tt,TT_Iter it) {
     cp.type = tt;
     cp.pos = it;
     cp.fname = NULL;
+    cp.sy = FUNCTIONRT_NONE;
     return cp;
 }
 CallPosition CallPosition_New_N(TT_Type tt,TT_Iter it,CStr name) {
@@ -35,6 +48,7 @@ CallPosition CallPosition_New_N(TT_Type tt,TT_Iter it,CStr name) {
     cp.type = tt;
     cp.pos = it;
     cp.fname = CStr_Cpy(name);
+    cp.sy = FUNCTIONRT_NONE;
     return cp;
 }
 CallPosition CallPosition_Make(TokenMap tm,TT_Type type,TT_Iter pos,CStr fname,int range) {
@@ -44,6 +58,7 @@ CallPosition CallPosition_Make(TokenMap tm,TT_Type type,TT_Iter pos,CStr fname,i
     cp.pos = pos;
     cp.fname = CStr_Cpy(fname);
     cp.range = range;
+    cp.sy = FUNCTIONRT_NONE;
     return cp;
 }
 CallPosition CallPosition_Null() {
@@ -52,14 +67,16 @@ CallPosition CallPosition_Null() {
     cp.type = TOKEN_NONE;
     cp.pos = CALLPOSITION_INVALID;
     cp.fname = NULL;
+    cp.sy = FUNCTIONRT_NONE;
     return cp;
 }
 void CallPosition_Free(CallPosition* cp) {
     TokenMap_Free(&cp->tm);
-    cp->type = TOKEN_NONE;
     CStr_Free(&cp->fname);
-    cp->pos = CALLPOSITION_INVALID;
-    cp->range = -1;
+}
+void CallPosition_Set(CallPosition* dst,CallPosition* src) {
+    CallPosition_Free(dst);
+    *dst = *src;
 }
 void CallPosition_Print(CallPosition* cp) {
     printf("--- CallPosition ---\n");
@@ -145,6 +162,13 @@ CallPosition* CallStack_Peek(CallStack* cs) {
     }
     return NULL;
 }
+CallPosition* CallStack_PrePeek(CallStack* cs) {
+    if(cs->size>1){
+        CallPosition* cp = (CallPosition*)Vector_Get(cs,cs->size-2);
+        return cp;
+    }
+    return NULL;
+}
 TT_Type CallStack_Back(CallStack* cs) {
     if(cs->size>0){
         CallPosition* cp = (CallPosition*)Vector_Get(cs,cs->size-1);
@@ -182,7 +206,16 @@ void CallStack_Remove(CallStack* cs,int i) {
 void CallStack_GoBack(CallStack* cs,TT_Iter* it) {
     if(cs->size>0){
         CallPosition* cp = (CallPosition*)Vector_Get(cs,cs->size-1);
-        *it = cp->pos - 1;
+        *it = cp->pos;
+    }
+}
+void CallStack_Return(CallStack* cs,TT_Type tt) {
+    for(int i = cs->size - 1;i>=0;i--){
+        CallPosition* cp = (CallPosition*)Vector_Get(cs,i);
+        TT_Type t = cp->type;
+        CallStack_Pop(cs);
+
+        if(t==tt) break;
     }
 }
 void CallStack_Free(CallStack* cs) {
@@ -212,6 +245,7 @@ typedef struct Function {
     CStr name;
     CStr rettype;
     Vector params;// Vector<Member>
+    String text;
 } Function;
 
 Function Function_New(TT_Iter pos,CStr name) {
@@ -220,6 +254,7 @@ Function Function_New(TT_Iter pos,CStr name) {
     cp.name = CStr_Cpy(name);
     cp.rettype = NULL;
     cp.params = Vector_New(sizeof(Member));
+    cp.text = String_New();
     return cp;
 }
 Function Function_Make(TT_Iter pos,CStr name,CStr rettype,Member* params) {
@@ -228,6 +263,7 @@ Function Function_Make(TT_Iter pos,CStr name,CStr rettype,Member* params) {
     cp.name = CStr_Cpy(name);
     cp.rettype = CStr_Cpy(rettype);
     cp.params = Vector_New(sizeof(Member));
+    cp.text = String_New();
 
     for(int i = 0;params[i].name!=NULL;i++){
         Vector_Push(&cp.params,&params[i]);
@@ -242,6 +278,7 @@ Function Function_MakeX(TT_Iter pos,Boolean access,CStr name,CStr rettype,Member
     cp.name = CStr_Cpy(name);
     cp.rettype = CStr_Cpy(rettype);
     cp.params = Vector_New(sizeof(Member));
+    cp.text = String_New();
 
     for(int i = 0;params[i].name!=NULL;i++){
         Vector_Push(&cp.params,&params[i]);
@@ -255,9 +292,16 @@ Function Function_Null() {
     cp.name = NULL;
     cp.rettype = NULL;
     cp.params = Vector_Null();
+    cp.text = String_Null();
     return cp;
 }
 void Function_Free(Function* cp) {
+    for(int i = 0;i<cp->params.size;i++){
+        Member* m = (Member*)Vector_Get(&cp->params,i);
+        Member_Free(m);
+    }
+    Vector_Free(&cp->params);
+    String_Free(&cp->text);
     CStr_Free(&cp->name);
     cp->pos = CALLPOSITION_INVALID;
 }
@@ -297,6 +341,13 @@ TT_Iter FunctionMap_Find(FunctionMap* cs,CStr name) {
         if(CStr_Cmp(f->name,name)) return i;
     }
     return -1;
+}
+Function* FunctionMap_FindF(FunctionMap* cs,CStr name) {
+    for(int i = 0;i<cs->size;i++){
+        Function* f = (Function*)Vector_Get(cs,i);
+        if(CStr_Cmp(f->name,name)) return f;
+    }
+    return NULL;
 }
 Function* FunctionMap_Get(FunctionMap* cs,CStr name) {
     for(int i = 0;i<cs->size;i++){
@@ -368,7 +419,7 @@ TT_Iter KeywordExecuterMap_Find(KeywordExecuterMap* cs,TT_Type tt) {
 }
 Vector KeywordExecuterMap_FindAll(KeywordExecuterMap* cs,TT_Type tt) {
     Vector iters = Vector_New(sizeof(int));
-    for(int i = cs->size-1;i>=0;i--){
+    for(int i = 0;i<cs->size;i++){
         KeywordExecuter* ke = (KeywordExecuter*)Vector_Get(cs,i);
         if(ke->tt==tt) Vector_Push(&iters,(int[]){ i });
     }
@@ -428,6 +479,13 @@ TT_Iter RangeChangerMap_Find(RangeChangerMap* cs,TT_Type tt) {
         if(ke->tt==tt) return i;
     }
     return -1;
+}
+RangeChanger* RangeChangerMap_FindG(RangeChangerMap* cs,TT_Type tt) {
+    for(int i = cs->size-1;i>=0;i--){
+        RangeChanger* ke = (RangeChanger*)Vector_Get(cs,i);
+        if(ke->tt==tt) return ke;
+    }
+    return NULL;
 }
 void RangeChangerMap_Free(RangeChangerMap* cs) {
     Vector_Free(cs);

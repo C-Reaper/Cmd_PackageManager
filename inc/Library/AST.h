@@ -2274,13 +2274,23 @@ Token AST_Execute(void* parent,Token* t,ShutingYard* sy){
     if(t->args.size > 0){
         Executer* exe = ExecuteMap_Find(&sy->em,t);
         if(exe){
-            for(int i = 0;i<t->args.size;i++){
-                Token* a = (Token*)Vector_Get(&t->args,i);
-                TokenMap_Set(&t->args,AST_Execute(parent,a,sy),i);
+            Token tcpy = Token_Cpy(t);
+            for(int i = 0;i<tcpy.args.size;i++){
+                Token* a = (Token*)Vector_Get(&tcpy.args,i);
+                TokenMap_Set(&tcpy.args,AST_Execute(parent,a,sy),i);
             }
-            Token ret = exe->Handler(parent,t,&t->args);
-            //Token_Print(&ret);
+            Token ret = exe->Handler(parent,&tcpy,&tcpy.args);
+            Token_Free(&tcpy);
             return ret;
+        }
+    }
+    return Token_Cpy(t);
+}
+Token AST_ExecuteDir(void* parent,Token* t,ShutingYard* sy){
+    if(t->args.size > 0){
+        Executer* exe = ExecuteMap_Find(&sy->em,t);
+        if(exe){
+            return exe->Handler(parent,t,&t->args);
         }
     }
     return Token_Cpy(t);
