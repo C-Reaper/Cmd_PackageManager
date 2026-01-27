@@ -1,8 +1,3 @@
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <stdio.h>
-
 #include "/home/codeleaded/System/Static/Library/PackageManager.h"
 
 int main() {
