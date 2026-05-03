@@ -3,13 +3,15 @@
 
 
 CC = gcc
-CFLAGS = -O0 -mavx2 -std=gnu17
+WARNINGS = -Werror
+CFLAGS = -O0 -mavx2 -std=gnu17 $(WARNINGS)
 INCLUDES = -Isrc
 LDFLAGS = -lm
 
 SRC_DIR = src
 BUILD_DIR = build
 TARGET = $(BUILD_DIR)/Main.exe
+PM = $(BUILD_DIR)/PackageManager
 
 # -----------------------------
 # Shell-Erkennung
@@ -32,10 +34,12 @@ $(BUILD_DIR):
 	$(MKDIR_CMD)
 
 all: $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(INCLUDES) $(SRC_DIR)/*.c -o $(TARGET) $(LDFLAGS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(SRC_DIR)/Main.c -o $(TARGET) $(LDFLAGS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(SRC_DIR)/PackageManager.c -o $(PM) $(LDFLAGS)
 
 alldebug: $(BUILD_DIR)
-	$(CC) -g $(CFLAGS) $(INCLUDES) $(SRC_DIR)/*.c -o $(TARGET) $(LDFLAGS)
+	$(CC) -g $(CFLAGS) $(INCLUDES) $(SRC_DIR)/Main.c -o $(TARGET) $(LDFLAGS)
+	$(CC) -g $(CFLAGS) $(INCLUDES) $(SRC_DIR)/PackageManager.c -o $(PM) $(LDFLAGS)
 
 exe:
 	$(RUN_CMD)
